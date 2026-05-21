@@ -783,7 +783,7 @@
       <cols>1</cols>
       <dt>f</dt>
       <data>
-        5.80576859e+01 -3.08669995e+03 -1.40865369e+03</data></val></tvec></PointsNum_Algo_solvePnP--solvePnP---91--SOLVEPNP_ITERATIVE->
+        58.0672525 -3086.692925 -1408.65345</data></val></tvec></PointsNum_Algo_solvePnP--solvePnP---91--SOLVEPNP_ITERATIVE->
 <PointsNum_Algo_solvePnP--solvePnP---91--SOLVEPNP_EPNP->
   <rvec>
     <kind>65536</kind>
@@ -1004,7 +1004,7 @@
       <cols>1</cols>
       <dt>d</dt>
       <data>
-        -0.077894223481416697 -1.0980759312212467</data></val></T_est_mat></EstimateTranslation2DPerf_EstimateTranslation2D--EstimateTranslation2D---1000--0-95--RANSAC--10->
+        -0.077894236144870774 -1.0980759957303716</data></val></T_est_mat></EstimateTranslation2DPerf_EstimateTranslation2D--EstimateTranslation2D---1000--0-95--RANSAC--10->
 <EstimateTranslation2DPerf_EstimateTranslation2D--EstimateTranslation2D---1000--0-95--RANSAC--0->
   <T_est_mat>
     <kind>65536</kind>
@@ -1024,7 +1024,7 @@
       <cols>1</cols>
       <dt>d</dt>
       <data>
-        -0.077894279360771174 -1.0980759686231614</data></val></T_est_mat></EstimateTranslation2DPerf_EstimateTranslation2D--EstimateTranslation2D---1000--0-95--LMEDS--10->
+        -0.077894246426273003 -1.0980760454577974</data></val></T_est_mat></EstimateTranslation2DPerf_EstimateTranslation2D--EstimateTranslation2D---1000--0-95--LMEDS--10->
 <EstimateTranslation2DPerf_EstimateTranslation2D--EstimateTranslation2D---1000--0-95--LMEDS--0->
   <T_est_mat>
     <kind>65536</kind>

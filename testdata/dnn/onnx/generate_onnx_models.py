@@ -14,7 +14,7 @@ import onnxsim
 import google.protobuf.text_format
 import io
 from typing import Optional, Tuple, Any
-from onnx import TensorProto
+from onnx import TensorProto, helper, numpy_helper
 
 def assertExpected(s):
     if not (isinstance(s, str) or (sys.version_info[0] == 2 and isinstance(s, unicode))):
@@ -52,6 +52,28 @@ def save_data_and_model(name, input, model, version=None, export_params=False):
     models_files = os.path.join("models", name + ".onnx")
 
     onnx_model_pb = export_to_string(model, input, version, export_params)
+    model_def = assertONNXExpected(onnx_model_pb)
+    with open(models_files, 'wb') as file:
+        file.write(model_def.SerializeToString())
+
+def save_data_and_model_multy_inputs(name, input_list, model, version=None, export_params=False):
+    model.eval()
+
+    for index in range(len(input_list)):
+        print(name + " input  "+str(index)+" has sizes",  input_list[index].shape)
+        input_file = os.path.join("data", "input_" + name + "_" + str(index))
+        np.save(input_file, input_list[index].data)
+
+    output = model(*input_list)
+
+    print(name + " output has sizes", output.shape)
+    print()
+    output_files =  os.path.join("data", "output_" + name)
+    np.save(output_files, np.ascontiguousarray(output.data))
+
+    models_files = os.path.join("models", name + ".onnx")
+
+    onnx_model_pb = export_to_string(model, input_list, version, export_params)
     model_def = assertONNXExpected(onnx_model_pb)
     with open(models_files, 'wb') as file:
         file.write(model_def.SerializeToString())
@@ -1069,6 +1091,22 @@ x = Variable(torch.rand(1, 2))
 model = FlattenModel()
 save_data_and_model("flatten_const", x, model)
 
+# Test ONNX Flatten with axis=rank (axis == number of input dimensions).
+# In ONNX spec, axis range is [0, rank] inclusive. axis=rank means
+# outer=product(all dims), inner=1, output shape=[total_elements, 1].
+inp = np.random.rand(2, 3).astype(np.float32)
+out = inp.reshape(6, 1)
+np.save(os.path.join("data", "input_flatten_axis_numaxes.npy"), inp)
+np.save(os.path.join("data", "output_flatten_axis_numaxes.npy"), out)
+input_tensor = onnx.helper.make_tensor_value_info('input', onnx.TensorProto.FLOAT, [2, 3])
+output_tensor = onnx.helper.make_tensor_value_info('output', onnx.TensorProto.FLOAT, [6, 1])
+flatten_node = onnx.helper.make_node('Flatten', inputs=['input'], outputs=['output'], axis=2)
+graph = onnx.helper.make_graph([flatten_node], 'flatten_axis_numaxes', [input_tensor], [output_tensor])
+flatten_axis_numaxes_model = onnx.helper.make_model(graph, opset_imports=[onnx.helper.make_opsetid('', 11)])
+flatten_axis_numaxes_model.ir_version = 6
+onnx.checker.check_model(flatten_axis_numaxes_model)
+onnx.save(flatten_axis_numaxes_model, os.path.join("models", "flatten_axis_numaxes.onnx"))
+
 class Cast(nn.Module):
     def __init__(self):
         super(Cast, self).__init__()
@@ -1977,6 +2015,14 @@ def create_range_test(name, np_dtype, onnx_dtype, start_val, end_val, step_val, 
 create_range_test("range_float", np.float32, onnx.TensorProto.FLOAT, 1.1, 8.5, 2.0, [[0, 0, 0, 0]], [[1.1, 3.1, 5.1, 7.1]])
 create_range_test("range_float_negative", np.float32, onnx.TensorProto.FLOAT, 8.5, 0.6, -2.0, [[0, 0, 0, 0]], [[8.5, 6.5, 4.5, 2.5]])
 
+t = 1000000000
+create_range_test("range_int32", np.int32, onnx.TensorProto.INT32, t + 1, t + 9, 2, [[0, 0, 0, 0]], [[t + 1, t + 3, t + 5, t + 7]])
+create_range_test("range_int32_negative", np.int32, onnx.TensorProto.INT32, t + 8, t + 1, -2, [[0, 0, 0, 0]], [[t + 8, t + 6, t + 4, t + 2]])
+
+t = 1000000000000000000
+create_range_test("range_int64", np.int64, onnx.TensorProto.INT64, t + 1, t + 8, 2, [[0, 0, 0, 0]], [[t + 1, t + 3, t + 5, t + 7]])
+create_range_test("range_int64_negative", np.int64, onnx.TensorProto.INT64, t + 9, t + 1, -2, [[0, 0, 0, 0]], [[t + 9, t + 7, t + 5, t + 3]])
+
 class Conv(nn.Module):
     def forward(self, x, kernel):
         out = F.conv2d(x, kernel, groups=1)
@@ -2594,13 +2640,19 @@ class CumSum(nn.Module):
         self._dim = dim
 
     def forward(self, x):
-        return torch.cumsum(x, self._dim)
+        return torch.cumsum(x, self._dim, dtype=x.dtype)
 
 x = torch.randn(2, 3)
 save_data_and_model("cumsum_2d_dim_1", x, CumSum(dim=1), version=11)
 
 x = torch.randn(2, 3, 4)
 save_data_and_model("cumsum_3d_dim_2", x, CumSum(dim=2), version=11)
+
+x = torch.randint(100, 200, (3, 4, 5), dtype=torch.int32)
+save_data_and_model("cumsum_3d_dim_2_int32", x, CumSum(dim=2), version=18)
+
+x = torch.randint(1000000000000000, 1000000000000200, (4, 3, 2), dtype=torch.int64)
+save_data_and_model("cumsum_3d_dim_2_int64", x, CumSum(dim=2), version=18)
 
 # test: CumSum exclusive layer should not be executed inplace
 dims = h.make_node("Constant", inputs=[], outputs=["dims1"], name="node-c1",
@@ -2739,7 +2791,7 @@ class ArgMax(nn.Module):
         super(ArgMax, self).__init__()
 
     def forward(self, x):
-        return torch.argmax(x, dim=2, keepdims=False).to(torch.float32)
+        return torch.argmax(x, dim=2, keepdims=False)
 
 model = ArgMax()
 input_ = Variable(torch.randn(2, 3, 4, 5, dtype=torch.float32))
@@ -2750,7 +2802,7 @@ class ArgMin(nn.Module):
         super(ArgMin, self).__init__()
 
     def forward(self, x):
-        return torch.argmin(x, dim=-1, keepdims=True).to(torch.float32)
+        return torch.argmin(x, dim=-1, keepdims=True)
 
 model = ArgMin()
 input_ = Variable(torch.randn(2, 3, 4, 5, dtype=torch.float32))
@@ -2861,6 +2913,7 @@ output_np = gemm_reference_implementation(weight_np.T, input_np.T)
 save_data_and_model("gemm_first_const", input_np, output_np, gemm_model)
 
 ## gemm with bias
+
 def generate_gemm_bias(name, inputA, inputB, inputC):
     outputY = gemm_reference_implementation(inputA, inputB, inputC)
 
@@ -2884,6 +2937,120 @@ inputA = np.random.ranf([3, 6]).astype(np.float32)
 inputB = np.random.ranf([6, 4]).astype(np.float32)
 inputC = np.random.ranf([1, 4]).astype(np.float32)
 generate_gemm_bias("gemm_vector_bias", inputA, inputB, inputC)
+
+## gemm with dynamic inputs
+
+def save_tensor_as_pb(tensor: np.ndarray, name: str, filepath: str):
+    tensor_proto = numpy_helper.from_array(tensor, name=name)
+    with open(filepath, 'wb') as f:
+        f.write(tensor_proto.SerializeToString())
+
+
+def generate_gemm_dynmaic_inputs(name, inputA, inputB, inputC, path_data, path_models):
+    outputY = gemm_reference_implementation(inputA, inputB, inputC)
+
+    A = onnx.helper.make_tensor_value_info("A", onnx.TensorProto.FLOAT, inputA.shape)
+    B = onnx.helper.make_tensor_value_info("B", onnx.TensorProto.FLOAT, inputB.shape)
+    C = onnx.helper.make_tensor_value_info("C", onnx.TensorProto.FLOAT, inputC.shape)
+    Y = onnx.helper.make_tensor_value_info("Y", onnx.TensorProto.FLOAT, outputY.shape)
+    node = onnx.helper.make_node("Gemm", inputs=["A", "B", "C"], outputs=["Y"])
+    graph = onnx.helper.make_graph([node], name, [A, B, C], [Y])
+    model = onnx.helper.make_model(graph, producer_name=name)
+    onnx.save(model, os.path.join(path_models,  f"{name}.onnx"))
+
+    save_tensor_as_pb(inputA, "A", os.path.join(path_data, f"input_{name}_0.pb"))
+    save_tensor_as_pb(inputB, "B", os.path.join(path_data, f"input_{name}_1.pb"))
+    save_tensor_as_pb(inputC, "C", os.path.join(path_data, f"input_{name}_2.pb"))
+    save_tensor_as_pb(outputY, "Y", os.path.join(path_data, f"output_{name}.pb"))
+
+
+gemm_dynamic_inputs_testcases = {
+    "vector_bias" : {
+        "inputA" : np.random.ranf([3, 6]).astype(np.float32),
+        "inputB" : np.random.ranf([6, 4]).astype(np.float32),
+        "inputC" : np.random.ranf([1, 4]).astype(np.float32),
+    },
+    "matrix_bias" : {
+        "inputA" : np.random.ranf([3, 6]).astype(np.float32),
+        "inputB" : np.random.ranf([6, 4]).astype(np.float32),
+        "inputC" : np.random.ranf([3, 4]).astype(np.float32),
+    },
+    "scalar_bias": {
+        "inputA": np.random.ranf([3, 6]).astype(np.float32),
+        "inputB": np.random.ranf([6, 4]).astype(np.float32),
+        "inputC": np.array(0.5, dtype=np.float32),  # scalar value
+    },
+    "single_elem_vector_bias": {
+        "inputA": np.random.ranf([3, 6]).astype(np.float32),
+        "inputB": np.random.ranf([6, 4]).astype(np.float32),
+        "inputC": np.array([0.5], dtype=np.float32),  # 1D tensor with shape [1]
+    }
+}
+
+for name, inputs in gemm_dynamic_inputs_testcases.items():
+    generate_gemm_dynmaic_inputs(
+        f"test_gemm_3inputs_{name}",
+        inputs["inputA"],
+        inputs["inputB"],
+        inputs["inputC"],
+        "data",
+        "models"
+    )
+
+## gemm with external data.
+
+import numpy as np
+import onnx
+from onnx import helper, TensorProto, numpy_helper
+from onnx.external_data_helper import convert_model_to_external_data
+import os
+import onnxruntime as ort
+
+input_dim = 8
+output_dim = 32
+batch_dim = 4
+onnx_model_path = "gemm_external_data.onnx"
+B_filename = "gemm_external_data_B"
+C_filename = "gemm_external_data_C"
+
+A_data = np.random.randn(batch_dim, input_dim).astype(np.float32)  # Batch size = 1
+
+A = helper.make_tensor_value_info("A", TensorProto.FLOAT, A_data.shape)
+Y = helper.make_tensor_value_info("Y", TensorProto.FLOAT, [batch_dim, output_dim])
+
+np.random.seed(0)
+B_data = np.random.randn(input_dim, output_dim).astype(np.float32)
+C_data = np.random.randn(output_dim).astype(np.float32)
+
+B_tensor = numpy_helper.from_array(B_data, name="B")
+C_tensor = numpy_helper.from_array(C_data, name="C")
+
+gemm_node = helper.make_node("Gemm", ["A", "B", "C"], ["Y"], alpha=1.0, beta=1.0, transB=0)
+graph = helper.make_graph([gemm_node], "GEMMGraph", [A], [Y], [B_tensor, C_tensor])
+model = helper.make_model(graph)
+onnx.checker.check_model(model)
+
+convert_model_to_external_data(
+    model,
+    all_tensors_to_one_file=False,
+    size_threshold=0,  # Force all tensors to external
+    convert_attribute=False
+)
+
+for initializer in model.graph.initializer:
+    if initializer.name == "B":
+        initializer.external_data[0].value = B_filename
+    elif initializer.name == "C":
+        initializer.external_data[0].value = C_filename
+
+onnx.save_model(model, onnx_model_path)
+
+session = ort.InferenceSession(onnx_model_path)
+outputs = session.run(None, {"A": A_data})
+Y_data = outputs[0]
+
+np.save("input_test_gemm_external_data.npy", A_data)
+np.save("output_test_gemm_external_data.npy", Y_data)
 
 # ########################## ReduceSum with Dynamic Batch ##########################
 input_np = np.random.rand(2, 4, 4, 4).astype("float32")
@@ -3176,3 +3343,88 @@ np.save(output_files, np.ascontiguousarray(output.data))
 def tf_resize_nearest(x):
     return tf.compat.v1.image.resize_nearest_neighbor(x, size=(5, 6), align_corners=False, half_pixel_centers=True)
 save_data_and_tf_function(tf_resize_nearest, "tf_half_pixel_for_nn", np.random.rand(1, 2, 3, 2))
+
+################# Sum #################
+
+class Sum(nn.Module):
+    def __init__(self, dims, keepdim):
+        super(Sum, self).__init__()
+        self.dims = dims
+        self.keepdim = keepdim
+
+    def forward(self, x):
+        #print(x.dtype, x.sum(dim=self.dims, keepdim=self.keepdim, dtype=x.dtype).dtype)
+        return torch.sum(x, dim=self.dims, keepdim=self.keepdim, dtype=x.dtype)
+
+# Different bihavior in Pytorch and ONNX: Pytorch converts values to int64, ONNX doesn't
+# x = torch.randint(100, 200, (2, 3, 4, 5), dtype=torch.int32)
+# save_data_and_model("reduce_sum_int32", x, Sum((2, 3), keepdim=False), version=18)
+
+x = torch.randint(1000000000000000, 1000000000000200, (3, 4, 5, 6), dtype=torch.int64)
+save_data_and_model("reduce_sum_int64", x, Sum((1,), keepdim=False), version=18)
+
+################# Scatter #################
+
+class Scatter(nn.Module):
+    def __init__(self, dim):
+        super(Scatter, self).__init__()
+        self.dim = dim
+
+    def forward(self, x, y, indices):
+        return torch.scatter(x, self.dim, indices, y)
+
+x = torch.randint(100, 200, (2, 3, 10, 7), dtype=torch.int32)
+y = torch.randint(100, 200, (2, 3, 5, 7), dtype=torch.int32)
+indices = torch.zeros((2, 3, 5, 7), dtype=torch.int64)
+for i in range(5):
+    indices[:, :, i, :] = 7 - i
+save_data_and_model_multy_inputs("scatter_int32", (x, y, indices), Scatter(2), version=18)
+
+x = torch.randint(1000000000000000, 1000000000000200, (2, 9, 3, 2), dtype=torch.int64)
+y = torch.randint(1000000000000000, 1000000000000200, (2, 4, 3, 2), dtype=torch.int64)
+indices = torch.zeros((2, 4, 3, 2), dtype=torch.int64)
+for i in range(4):
+    indices[:, i, :, :] = 2 + i
+save_data_and_model_multy_inputs("scatter_int64", (x, y, indices), Scatter(1), version=18)
+
+################# Tile #################
+
+class Tile(nn.Module):
+    def __init__(self, dims):
+        super(Tile, self).__init__()
+        self.dims = dims
+
+    def forward(self, x):
+        return x.repeat(self.dims)
+
+x = torch.randint(100, 200, (2, 3, 4, 5), dtype=torch.int32)
+save_data_and_model("tile_int32", x, Tile((1, 1, 2, 3)), version=18)
+
+x = torch.randint(1000000000000000, 1000000000000200, (3, 4, 5, 6), dtype=torch.int64)
+save_data_and_model("tile_int64", x, Tile((1, 1, 1, 2)), version=18)
+
+################# PriorBox #################
+
+data  = helper.make_tensor_value_info("input_0", TensorProto.FLOAT, [1, 3, 10, 10])
+shape = helper.make_tensor_value_info("input_1", TensorProto.FLOAT, [1, 2, 3, 4])
+out   = helper.make_tensor_value_info("out",     TensorProto.FLOAT, ["d0", "d1", "d2"])
+node = helper.make_node("PriorBox", ["input_1", "input_0"], ["out"],
+                         min_size=[2.0, 3.0],
+                         max_size=[6.0, 7.0],
+                         aspect_ratio=[2.0],
+                         flip=1, clip=0,
+                         variance=[0.1, 0.1, 0.2, 0.2])
+graph = helper.make_graph([node], "prior_box", [data, shape], [out])
+onnx.save(helper.make_model(graph, producer_name="prior_box"),
+          os.path.join("models", "prior_box.onnx"))
+
+################# Resize Nearest #################
+
+inp = helper.make_tensor_value_info("input", TensorProto.FLOAT, [1, 1, 2, 3])
+out = helper.make_tensor_value_info("out",   TensorProto.FLOAT, [1, 1, 4, 6])
+roi    = numpy_helper.from_array(np.array([], dtype=np.float32),                  name="roi")
+scales = numpy_helper.from_array(np.array([1.0, 1.0, 2.0, 2.0], dtype=np.float32), name="scales")
+node = helper.make_node("Resize", ["input", "roi", "scales"], ["out"], mode="nearest")
+graph = helper.make_graph([node], "Resample", [inp], [out], initializer=[roi, scales])
+onnx.save(helper.make_model(graph, producer_name="nearest"),
+          os.path.join("models", "nearest.onnx"))

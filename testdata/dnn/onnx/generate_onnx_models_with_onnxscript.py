@@ -407,6 +407,28 @@ def clip_div_shared_constant(x: ost.FLOAT[1, 8, 12, 10]) -> ost.FLOAT[1, 8, 12, 
     return clip
 make_model_and_data(clip_div_shared_constant, np.random.rand(1, 8, 12, 10).astype(np.float32))
 
+batch_size = 3
+dim_size = 10
+@ost.script()
+def reducesum_consts(x: ost.FLOAT[batch_size, 1]) -> ost.FLOAT[dim_size]:
+
+    # Constants
+    base_value = op.Constant(value=onnx.helper.make_tensor("", onnx.TensorProto.FLOAT, [dim_size, batch_size], np.ones(batch_size * dim_size)))
+    pow_y = op.Constant(value=onnx.helper.make_tensor("", onnx.TensorProto.FLOAT, [], np.array([2.0])))
+
+    # Operations
+    pow_result = op.Pow(base_value, pow_y)
+    output = op.ReduceSum(pow_result, axes=[1], keepdims=0)
+
+    output = op.Add(output, x)
+    return output
+make_model_and_data(reducesum_consts, np.zeros((batch_size, 1), dtype=np.float32))
+
+@ost.script()
+def and_op(x: ost.BOOL[5], y: ost.BOOL[5]) -> ost.BOOL[5]:
+    return op.And(x, y)
+make_model_and_data(and_op, np.ones(5, dtype=np.bool_), np.zeros(5, dtype=np.bool_))
+
 ''' Subgraph [Input] -> MatMul<B> -> [Outpunt]
 '''
 

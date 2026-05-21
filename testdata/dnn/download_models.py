@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 from __future__ import print_function
 import hashlib
@@ -238,6 +238,16 @@ class Model:
 
 models = [
     Model(
+        name='RetinaFace-10G',
+        url='https://huggingface.co/wanesoft/faceswap_pack/resolve/main/retinaface_10g.onnx',
+        sha='7d7096939643629d43135e4765d53ed8570ef425',
+        filename='onnx/models/retinaface_10g.onnx'),
+    Model(
+        name='YOLO26n',
+        url='https://drive.google.com/uc?id=17OWMXSiefFMmj46CT42Fd2q5kl_jHRBC',
+        sha='fea8aaae1f90a3bea19469483e3b5e8bb3ced335',
+        filename='onnx/models/yolo26n.onnx'),
+    Model(
         name='GoogleNet',
         url='http://dl.caffe.berkeleyvision.org/bvlc_googlenet.caffemodel',
         sha='405fc5acd08a3bb12de8ee5e23a96bec22f08204',
@@ -252,11 +262,6 @@ models = [
         url='https://github.com/petewarden/tf_ios_makefile_example/raw/master/data/tensorflow_inception_graph.pb',
         sha='c8a5a000ee8d8dd75886f152a50a9c5b53d726a5',
         filename='tensorflow_inception_graph.pb'),
-    Model(
-        name='Enet',  # https://github.com/e-lab/ENet-training
-        url='https://www.dropbox.com/s/tdde0mawbi5dugq/Enet-model-best.net?dl=1',
-        sha='b4123a73bf464b9ebe9cfc4ab9c2d5c72b161315',
-        filename='Enet-model-best.net'),
     Model(
         name='Fcn',
         url='http://dl.caffe.berkeleyvision.org/fcn8s-heavy-pascal.caffemodel',
@@ -295,11 +300,6 @@ models = [
         url='https://raw.githubusercontent.com/chuanqi305/MobileNet-SSD/97406996b1eee2d40eb0a00ae567cf41e23369f9/deploy.prototxt',
         sha='50cf80235a8fcccc641bf9f8efc803edbf21c615',
         filename='MobileNetSSD_deploy_19e3ec3.prototxt'),
-    Model(
-        name='OpenFace',  # https://github.com/cmusatyalab/openface
-        url='https://storage.cmusatyalab.org/openface-models/nn4.small2.v1.t7',
-        sha='ac8161a4376fb5a79ceec55d85bbb57ef81da9fe',
-        filename='openface_nn4.small2.v1.t7'),
     Model(
         name='YoloV2voc',  # https://pjreddie.com/darknet/yolo/
         url='https://pjreddie.com/media/files/yolo-voc.weights',
@@ -649,6 +649,11 @@ models = [
                 filename='onnx/data/output_resnet50v1.pb'),
         ]),
     Model(
+        name='ResNet-50v1-QDQ (ONNX)',
+        url='https://github.com/onnx/models/raw/main/validated/vision/classification/resnet/model/resnet50-v1-12-qdq.onnx',
+        sha='3b0274b37ca450b9cf3efc3029d574409a7ad650',
+        filename='onnx/models/resnet50-v1-12-qdq.onnx'),
+    Model(
         name='ResNet50-Int8 (ONNX)',
         url='https://github.com/onnx/models/raw/771185265efbdc049fb223bd68ab1aeb1aecde76/vision/classification/resnet/model/resnet50-v1-12-int8.tar.gz',
         sha='2ff2a58f4a27362ee6234915452e86287cdcf269',
@@ -667,6 +672,11 @@ models = [
                 sha='6d45d2f06150e9045631c7928093728b07c8b12d',
                 filename='onnx/data/output_resnet50_int8.pb'),
         ]),
+    Model(
+        name='SSD MobileNet v1 (ONNX)',
+        url='https://huggingface.co/onnxmodelzoo/ssd_mobilenet_v1_12/resolve/main/ssd_mobilenet_v1_12.onnx',
+        sha='83536889adce1eda154175f8e3b156dd20443631',
+        filename='onnx/models/ssd_mobilenet_v1_12.onnx'),
     # TODO: bad file
     Model(
         name='ResNet101_DUC_HDC (ONNX)',
@@ -915,14 +925,6 @@ models = [
         url='https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4x-mish.weights',
         sha='a6f2879af2241de2e9730d317a55db6afd0af00b',
         filename='yolov4x-mish.weights'),
-    Model(
-        name='GSOC2016-GOTURN',  # https://github.com/opencv/opencv_contrib/issues/941
-        url=[
-            'https://docs.google.com/uc?export=download&id=1j4UTqVE4EGaUFiK7a5I_CYX7twO9c5br',
-            'https://dl.opencv.org/models/goturn.caffemodel'
-        ],
-        sha='49776d262993c387542f84d9cd16566840404f26',
-        filename='gsoc2016-goturn/goturn.caffemodel'),
     Model(
         name='DaSiamRPM Tracker network (ONNX)',
         url='https://www.dropbox.com/s/rr1lk9355vzolqv/dasiamrpn_model.onnx?dl=1',
@@ -1232,6 +1234,36 @@ models = [
         url='https://storage.googleapis.com/mediapipe-assets/face_blendshapes.tflite?generation=1677787708051579',
         sha='eaf27df74abb6e112f3edbd7b06eb3d464fd02cc',
         filename='tflite/face_blendshapes.tflite'),
+    Model(
+        name='ViT Base Patch16 224 (ONNX)',
+        url='https://huggingface.co/onnxmodelzoo/vit_base_patch16_224_Opset16/resolve/main/vit_base_patch16_224_Opset16.onnx',
+        sha='c91050cfe5f538fd71d34304c0f892e216a94fca',
+        filename='vit_base_patch16_224_Opset16.onnx'),
+    Model(
+        name='BERT Base Uncased (ONNX)',
+        url='https://huggingface.co/google-bert/bert-base-uncased/resolve/main/model.onnx',
+        sha='efacca472afac362a761e60d61ce72227be5eb1e',
+        filename='onnx/models/bert.onnx'),
+    Model(
+        name='DeiT Tiny Patch16 224 (ONNX)',
+        url='https://huggingface.co/onnxmodelzoo/deit_tiny_patch16_224_Opset16/resolve/main/deit_tiny_patch16_224_Opset16.onnx',
+        sha='f8d178ca90b9a4e639d5fef235262e50ea853349',
+        filename='deit_tiny_patch16_224_Opset16.onnx'),
+    Model(
+        name='MobileViT_XS_Opset16 (ONNX)',
+        url='https://github.com/onnx/models/raw/main/Computer_Vision/mobilevit_xs_Opset16_timm/mobilevit_xs_Opset16.onnx',
+        sha='e7bd07a3712ccfb207964b7ab44b2c6f4c7b7a40',
+        filename='mobilevit_xs_Opset16.onnx'),
+    Model(
+        name='MobileViTv2_100_Opset16 (ONNX)',
+        url='https://github.com/onnx/models/raw/main/Computer_Vision/mobilevitv2_100_Opset16_timm/mobilevitv2_100_Opset16.onnx',
+        sha='091fa7bcb572a184020d7dfb5fcfeabefecd5f9a',
+        filename='mobilevitv2_100_Opset16.onnx'),
+    Model(
+        name='BEiT Base Patch16 224 (ONNX)',
+        url='https://github.com/onnx/models/raw/main/Computer_Vision/skip/beit_base_patch16_224_Opset16_timm/beit_base_patch16_224_Opset16.onnx',
+        sha='119f6201d2a1bde5bf1d536e593369f4579718c3',
+        filename='beit_base_patch16_224_Opset16.onnx'),
 ]
 
 # Note: models will be downloaded to current working directory
